@@ -1,0 +1,39 @@
+# Environment variables (but keep .env.example)
+.env
+.env.local
+!.env.example
+
+# Node modules
+node_modules/
+
+# Bun
+bun.lockb
+
+# Build artifacts
+dist/
+build/
+
+# Extension packaging
+*.zip
+*.crx
+*.pem
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+tmp/
+temp/
+

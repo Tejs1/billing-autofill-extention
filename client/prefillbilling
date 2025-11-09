@@ -1,0 +1,135 @@
+// Chrome Extension: Auto-Fill Mock Billing Data
+// manifest.json
+{
+  "manifest_version": 3,
+  "name": "Mock Billing Auto-Fill",
+  "version": "1.0",
+  "description": "Automatically fills mock billing address and card details for testing",
+  "permissions": ["activeTab"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Auto-Fill Mock Data"
+  }
+}
+
+// content.js
+const mockData = {
+  firstName: "John",
+  lastName: "Doe",
+  email: "john.doe@example.com",
+  phone: "555-123-4567",
+  address: "123 Main Street",
+  address2: "Apt 4B",
+  city: "New York",
+  state: "NY",
+  zip: "10001",
+  country: "US",
+  cardNumber: "4242424242424242",
+  expiryMonth: "12",
+  expiryYear: "2030",
+  cvv: "123",
+  nameOnCard: "John Doe"
+};
+
+function fillField(selector, value) {
+  const field = document.querySelector(selector);
+  if (field) {
+    field.value = value;
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    field.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+}
+
+function autoFillBillingData() {
+  // Common billing form selectors
+  const selectors = {
+    firstName: ['input[name*="first"], input[name*="fname"], input[id*="first"]', 'input[placeholder*="First"]'],
+    lastName: ['input[name*="last"], input[name*="lname"], input[id*="last"]', 'input[placeholder*="Last"]'],
+    email: ['input[type="email"], input[name*="email"], input[id*="email"]'],
+    phone: ['input[name*="phone"], input[id*="phone"], input[type="tel"]'],
+    address: ['input[name*="address"], input[id*="address"], input[name*="street"]'],
+    address2: ['input[name*="address2"], input[id*="address2"], input[name*="apt"]'],
+    city: ['input[name*="city"], input[id*="city"]'],
+    state: ['input[name*="state"], input[id*="state"], select[name*="state"]'],
+    zip: ['input[name*="zip"], input[name*="postal"], input[id*="zip"]'],
+    country: ['select[name*="country"], select[id*="country"]'],
+    cardNumber: ['input[name*="card"], input[id*="card"], input[placeholder*="Card"]'],
+    expiryMonth: ['select[name*="month"], input[name*="month"], select[id*="month"]'],
+    expiryYear: ['select[name*="year"], input[name*="year"], select[id*="year"]'],
+    cvv: ['input[name*="cvv"], input[name*="cvc"], input[id*="cvv"]'],
+    nameOnCard: ['input[name*="cardholder"], input[name*="cardname"], input[id*="cardname"]']
+  };
+
+  Object.keys(selectors).forEach(field => {
+    selectors[field].forEach(selector => {
+      fillField(selector, mockData[field]);
+    });
+  });
+}
+
+// Listen for messages from popup
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "fillBillingData") {
+    autoFillBillingData();
+    sendResponse({ status: "completed" });
+  }
+});
+
+// popup.html
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      width: 200px;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .warning {
+      color: #ff6b6b;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <button id="fillButton">Fill Mock Data</button>
+  <div class="warning">
+    ⚠️ For testing purposes only!
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
+
+// popup.js
+document.getElementById('fillButton').addEventListener('click', () => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    chrome.tabs.sendMessage(tabs[0].id, { action: "fillBillingData" }, (response) => {
+      if (response && response.status === "completed") {
+        document.getElementById('fillButton').textContent = "Filled!";
+        setTimeout(() => {
+          document.getElementById('fillButton').textContent = "Fill Mock Data";
+        }, 2000);
+      }
+    });
+  });
+});

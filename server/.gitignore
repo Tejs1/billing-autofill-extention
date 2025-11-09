@@ -1,0 +1,17 @@
+# Environment variables
+.env
+.env.local
+
+# Bun
+node_modules/
+bun.lockb
+dist/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+

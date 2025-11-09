@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        width: 260px;
+        padding: 16px;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #1f2933;
+      }
+      h1 {
+        font-size: 16px;
+        margin: 0 0 12px;
+        font-weight: 600;
+      }
+      button {
+        width: 100%;
+        padding: 10px 12px;
+        background-color: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: background-color 0.2s ease;
+      }
+      button:hover {
+        background-color: #1d4ed8;
+      }
+      button[disabled] {
+        background-color: #9aa5b1;
+        cursor: not-allowed;
+      }
+      .status {
+        margin-top: 12px;
+        min-height: 20px;
+        font-size: 13px;
+      }
+      .status.error {
+        color: #d64545;
+      }
+      .status.success {
+        color: #157f3b;
+      }
+      .options-link {
+        margin-top: 14px;
+        text-align: center;
+      }
+      .options-link button {
+        background: none;
+        color: #2563eb;
+        border: none;
+        padding: 0;
+        width: auto;
+        font-weight: 500;
+      }
+      .options-link button:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>AI Form Auto Fill</h1>
+    <button id="fillButton">Fill Visible Form</button>
+    <div id="status" class="status"></div>
+    <div class="options-link">
+      <button id="openOptions" type="button">Open settings</button>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>

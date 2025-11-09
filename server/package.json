@@ -1,0 +1,16 @@
+{
+  "name": "ai-form-autofill-server",
+  "version": "1.0.0",
+  "description": "Backend proxy server for AI Form Auto Fill extension",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch index.ts",
+    "start": "bun run index.ts",
+    "build": "bun build index.ts --outdir=dist --target=bun"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
+
