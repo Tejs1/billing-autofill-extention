@@ -1,6 +1,41 @@
 // Default server URL (can be overridden in options)
 const DEFAULT_SERVER_URL = "http://localhost:3000";
 
+// Create context menu item on extension install/startup
+function createContextMenu() {
+	chrome.contextMenus.removeAll(() => {
+		chrome.contextMenus.create({
+			id: "ai-fill-form",
+			title: "Fill Form with AI",
+			contexts: ["page", "editable"],
+		});
+	});
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+	createContextMenu();
+});
+
+// Also create on startup in case it was removed
+chrome.runtime.onStartup.addListener(() => {
+	createContextMenu();
+});
+
+// Handle context menu clicks
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+	if (info.menuItemId === "ai-fill-form" && tab?.id) {
+		chrome.tabs.sendMessage(tab.id, { type: "trigger-ai-fill" }, (response) => {
+			if (chrome.runtime.lastError) {
+				console.error("Extension error:", chrome.runtime.lastError);
+				return;
+			}
+			if (!response?.success) {
+				console.warn("AI fill failed:", response?.error);
+			}
+		});
+	}
+});
+
 async function getServerConfig() {
 	const { serverUrl, serverApiKey } = await chrome.storage.local.get([
 		"serverUrl",

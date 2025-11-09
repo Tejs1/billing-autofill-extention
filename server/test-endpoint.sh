@@ -23,7 +23,8 @@ if [ -z "$SERVER_API_KEY" ]; then
     exit 1
 fi
 
-SERVER_URL="${1:-http://localhost:3000}"
+# Use SERVER_URL from env, fallback to command-line arg, then default
+SERVER_URL="${SERVER_URL:-${1:-http://localhost:3000}}"
 
 echo "📍 Server URL: $SERVER_URL"
 echo "🔑 Using SERVER_API_KEY from .env"
@@ -34,7 +35,7 @@ echo "Test 1: Health Check"
 echo "--------------------"
 HEALTH_RESPONSE=$(curl -s -w "\n%{http_code}" "$SERVER_URL/health")
 HEALTH_CODE=$(echo "$HEALTH_RESPONSE" | tail -n1)
-HEALTH_BODY=$(echo "$HEALTH_RESPONSE" | head -n-1)
+HEALTH_BODY=$(echo "$HEALTH_RESPONSE" | sed '$d')
 
 if [ "$HEALTH_CODE" = "200" ]; then
     echo "✅ Health check passed"
@@ -78,7 +79,7 @@ FILL_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$SERVER_URL/api/generate-fi
   }')
 
 FILL_CODE=$(echo "$FILL_RESPONSE" | tail -n1)
-FILL_BODY=$(echo "$FILL_RESPONSE" | head -n-1)
+FILL_BODY=$(echo "$FILL_RESPONSE" | sed '$d')
 
 if [ "$FILL_CODE" = "200" ]; then
     echo "✅ Generate fill passed"

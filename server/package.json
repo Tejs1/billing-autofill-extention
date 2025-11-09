@@ -8,9 +8,8 @@
     "start": "bun run index.ts",
     "build": "bun build index.ts --outdir=dist --target=bun"
   },
-  "dependencies": {},
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/node": "^24.10.0"
   }
 }
-

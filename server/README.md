@@ -76,6 +76,10 @@ bun run start
 
 The server will start on `http://localhost:3000` (or your configured PORT).
 
+## API Documentation
+
+For complete API documentation including detailed request/response formats, examples in multiple languages, and best practices, see **[API.md](./API.md)**.
+
 ## API Endpoints
 
 ### POST `/api/generate-fill`

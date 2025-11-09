@@ -47,6 +47,14 @@ interface GenerateFillResponse {
   error?: string;
 }
 
+interface OpenAIResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+}
+
 // CORS headers helper
 function getCorsHeaders(origin: string | null): Record<string, string> {
   const allowedOriginsList = ALLOWED_ORIGINS.split(",").map((o) => o.trim());
@@ -83,20 +91,37 @@ function checkRateLimit(identifier: string): boolean {
   return true;
 }
 
+// Personas/styles for variation
+const PERSONAS = ["professional", "casual", "formal", "creative", "modern", "traditional"];
+
 // Build prompt for OpenAI
 function buildPrompt(fields: FormField[]) {
+  // Select a random persona for this request
+  const persona = PERSONAS[Math.floor(Math.random() * PERSONAS.length)];
+
+  // Generate variation seed using timestamp and random component
+  const timestamp = Date.now();
+  const randomSeed = Math.floor(Math.random() * 1000000);
+  const variationSeed = `${timestamp}-${randomSeed}`;
+
   return [
     {
       role: "system",
       content:
-        "You help with auto completing web forms. Respond with JSON only. " +
-        "For each field id, return a short, plausible placeholder value. " +
-        "Avoid using real personal data. Use ISO formats for dates and keep numbers realistic.",
+        `You help with auto completing web forms. Respond with JSON only. ` +
+        `For each field id, return a short, plausible placeholder value. ` +
+        `Avoid using real personal data. Use ISO formats for dates and keep numbers realistic. ` +
+        `Generate diverse, varied values each time - use different names, addresses, emails, and other data. ` +
+        `Vary the style and format of responses. ` +
+        `Current persona/style: ${persona}. ` +
+        `Variation seed: ${variationSeed}`,
     },
     {
       role: "user",
       content: `Fields to fill (array of objects with id, name, label, placeholder, type):
 ${JSON.stringify(fields, null, 2)}
+
+Generate diverse, realistic placeholder values. Use different names, addresses, emails, phone numbers, and other data each time. Vary formats and styles while keeping values plausible and appropriate for each field type.
 
 Return JSON in the format {"<fieldId>": {"value": "<filling value>", "reason": "<why this value fits>"}}.`,
     },
@@ -113,7 +138,7 @@ async function callOpenAI(fields: FormField[]): Promise<Record<string, FillValue
     },
     body: JSON.stringify({
       model: MODEL,
-      temperature: 0.3,
+      temperature: 0.75,
       response_format: { type: "json_object" },
       messages: buildPrompt(fields),
     }),
@@ -130,7 +155,7 @@ async function callOpenAI(fields: FormField[]): Promise<Record<string, FillValue
     throw new Error(`OpenAI request failed: ${detail}`);
   }
 
-  const data = await response.json();
+  const data = (await response.json()) as OpenAIResponse;
   const content = data.choices?.[0]?.message?.content;
 
   if (!content) {
@@ -216,8 +241,8 @@ const server = Bun.serve({
         }
 
         // Parse and validate request body
-        const body: GenerateFillRequest = await req.json();
-        
+        const body = (await req.json()) as GenerateFillRequest;
+
         if (!body.fields || !Array.isArray(body.fields)) {
           return new Response(
             JSON.stringify({
@@ -323,7 +348,7 @@ const server = Bun.serve({
   },
 });
 
-console.log(`🚀 Server running at http://localhost:${server.port}`);
+console.log(`🚀 Server running at http://localhost:${PORT}`);
 console.log(`📊 Rate limit: ${RATE_LIMIT_MAX_REQUESTS} requests per ${RATE_LIMIT_WINDOW / 1000} seconds`);
 console.log(`🔒 CORS origins: ${ALLOWED_ORIGINS}`);
 
