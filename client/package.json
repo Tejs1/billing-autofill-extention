@@ -1,0 +1,17 @@
+{
+  "name": "ai-form-autofill-client",
+  "version": "2.0.0",
+  "description": "Browser extension client for AI Form Auto Fill",
+  "type": "module",
+  "scripts": {
+    "build": "tsc && npm run copy-assets",
+    "watch": "tsc --watch",
+    "copy-assets": "cp *.html dist/ && cp manifest.json dist/ && cp popup.js options.js dist/ && cp *.css dist/ 2>/dev/null || true && cp *.png dist/ 2>/dev/null || true",
+    "clean": "rm -rf dist",
+    "rebuild": "npm run clean && npm run build"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.256",
+    "typescript": "^5.3.3"
+  }
+}

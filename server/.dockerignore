@@ -5,5 +5,14 @@ node_modules
 .DS_Store
 README.md
 DEPLOYMENT.md
+API.md
 test-endpoint.sh
+setup.sh
+*.test.ts
+coverage
+.git
+.gitignore
+.vscode
+.idea
+dist
 

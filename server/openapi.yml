@@ -1,0 +1,393 @@
+openapi: 3.0.3
+info:
+  title: AI Form Auto Fill API
+  description: |
+    Backend proxy server for the AI Form Auto Fill browser extension.
+
+    This API securely stores your OpenAI API key and handles all communication
+    with OpenAI's API, ensuring your API key never touches the client side.
+
+    ## Authentication
+
+    All API endpoints (except health check) require authentication using the
+    `X-API-Key` header. This key should match your `SERVER_API_KEY` environment variable.
+
+    ## Rate Limiting
+
+    The API implements rate limiting to prevent abuse. Default limits are:
+    - 20 requests per minute per API key
+    - Configurable via environment variables
+
+  version: 1.0.0
+  contact:
+    name: API Support
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://your-production-url.com
+    description: Production server
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Form Fill
+    description: AI-powered form filling operations
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: |
+        Returns the health status of the server and its dependencies.
+
+        Checks connectivity to:
+        - OpenAI API
+        - Redis (if enabled)
+      operationId: healthCheck
+      security: []
+      responses:
+        '200':
+          description: Server is healthy or degraded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResponse'
+              examples:
+                healthy:
+                  summary: All systems operational
+                  value:
+                    status: ok
+                    timestamp: '2024-01-15T10:30:00Z'
+                    checks:
+                      openai:
+                        status: ok
+                      redis:
+                        status: ok
+                degraded:
+                  summary: Some systems have issues
+                  value:
+                    status: degraded
+                    timestamp: '2024-01-15T10:30:00Z'
+                    checks:
+                      openai:
+                        status: error
+                        message: 'HTTP 500'
+        '503':
+          description: Server is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResponse'
+
+  /api/v1/generate-fill:
+    post:
+      tags:
+        - Form Fill
+      summary: Generate form fill values
+      description: |
+        Generates AI-powered form field values based on field metadata.
+
+        The AI analyzes field names, labels, types, and placeholders to generate
+        appropriate and plausible values for each field.
+
+        ## Features
+        - Intelligent value generation based on field context
+        - Varied responses using different personas
+        - Caching for identical requests (5-minute TTL)
+        - Support for various field types (text, email, tel, date, etc.)
+
+      operationId: generateFill
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateFillRequest'
+            examples:
+              simpleForm:
+                summary: Simple contact form
+                value:
+                  fields:
+                    - id: '1'
+                      name: email
+                      label: Email Address
+                      type: email
+                    - id: '2'
+                      name: phone
+                      label: Phone Number
+                      type: tel
+              complexForm:
+                summary: Complex registration form
+                value:
+                  fields:
+                    - id: 'firstName'
+                      name: firstName
+                      label: First Name
+                      type: text
+                      placeholder: Enter your first name
+                    - id: 'lastName'
+                      name: lastName
+                      label: Last Name
+                      type: text
+                    - id: 'email'
+                      name: email
+                      label: Email
+                      type: email
+                    - id: 'dob'
+                      name: dateOfBirth
+                      label: Date of Birth
+                      type: date
+
+      responses:
+        '200':
+          description: Successfully generated fill values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateFillResponse'
+              example:
+                success: true
+                data:
+                  '1':
+                    value: user@example.com
+                    reason: Valid email format for email input field
+                  '2':
+                    value: '+1-555-0123'
+                    reason: Standard US phone number format
+
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidFields:
+                  summary: Invalid fields array
+                  value:
+                    success: false
+                    error: "Validation error: fields: Expected array, received string"
+                tooManyFields:
+                  summary: Too many fields
+                  value:
+                    success: false
+                    error: "Validation error: fields: Array must contain at most 50 element(s)"
+
+        '401':
+          description: Unauthorized - missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: 'Unauthorized: Invalid or missing API key'
+
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: Rate limit exceeded. Please try again later.
+
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: An unexpected error occurred
+
+  /api/generate-fill:
+    post:
+      tags:
+        - Form Fill
+      summary: Generate form fill values (deprecated)
+      description: |
+        **DEPRECATED:** Use `/api/v1/generate-fill` instead.
+
+        This endpoint is maintained for backwards compatibility but will be
+        removed in a future version.
+      deprecated: true
+      operationId: generateFillDeprecated
+      requestBody:
+        $ref: '#/paths/~1api~1v1~1generate-fill/post/requestBody'
+      responses:
+        $ref: '#/paths/~1api~1v1~1generate-fill/post/responses'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        Server API key for authentication. This should be set in your
+        server's environment variables as `SERVER_API_KEY`.
+
+  schemas:
+    FormField:
+      type: object
+      required:
+        - id
+        - name
+        - label
+        - type
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the field
+          minLength: 1
+          example: 'field-1'
+        name:
+          type: string
+          description: Field name attribute
+          minLength: 1
+          example: email
+        label:
+          type: string
+          description: Field label text
+          example: Email Address
+        placeholder:
+          type: string
+          description: Field placeholder text
+          example: Enter your email
+        type:
+          type: string
+          description: Field input type
+          minLength: 1
+          example: email
+          enum:
+            - text
+            - email
+            - tel
+            - number
+            - date
+            - time
+            - datetime-local
+            - url
+            - password
+        existingValue:
+          type: string
+          description: Existing value in the field (if any)
+          example: ''
+
+    GenerateFillRequest:
+      type: object
+      required:
+        - fields
+      properties:
+        fields:
+          type: array
+          description: Array of form fields to generate values for
+          minItems: 1
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/FormField'
+
+    FillValue:
+      type: object
+      required:
+        - value
+        - reason
+      properties:
+        value:
+          type: string
+          description: The generated value for the field
+          example: user@example.com
+        reason:
+          type: string
+          description: Explanation of why this value was chosen
+          example: Valid email format for email input field
+
+    GenerateFillResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+          description: Whether the request was successful
+          example: true
+        data:
+          type: object
+          description: Map of field IDs to generated values
+          additionalProperties:
+            $ref: '#/components/schemas/FillValue'
+        error:
+          type: string
+          description: Error message (only present if success is false)
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          description: Always false for errors
+          example: false
+        error:
+          type: string
+          description: Error message describing what went wrong
+          example: 'Unauthorized: Invalid or missing API key'
+
+    HealthCheckResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+        - checks
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - degraded
+            - error
+          description: Overall health status
+          example: ok
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of the health check
+          example: '2024-01-15T10:30:00Z'
+        checks:
+          type: object
+          description: Individual service health checks
+          properties:
+            openai:
+              $ref: '#/components/schemas/ServiceHealthCheck'
+            redis:
+              $ref: '#/components/schemas/ServiceHealthCheck'
+
+    ServiceHealthCheck:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - error
+          description: Service health status
+          example: ok
+        message:
+          type: string
+          description: Additional information about the service status
+          example: 'Connection failed'
