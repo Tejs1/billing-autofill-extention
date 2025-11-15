@@ -4,9 +4,10 @@
   "description": "Browser extension client for AI Form Auto Fill",
   "type": "module",
   "scripts": {
-    "build": "tsc && npm run copy-assets",
+    "build": "tsc && npm run copy-assets && npm run fix-content-script",
     "watch": "tsc --watch",
-    "copy-assets": "cp *.html dist/ && cp manifest.json dist/ && cp popup.js options.js dist/ && cp *.css dist/ 2>/dev/null || true && cp *.png dist/ 2>/dev/null || true",
+    "copy-assets": "cp src/*.html dist/ && cp src/manifest.json dist/ && (cp src/*.css dist/ 2>/dev/null || true) && (cp src/*.png dist/ 2>/dev/null || true)",
+    "fix-content-script": "sed -i.bak '/^export {};$/d' dist/content.js && rm -f dist/content.js.bak",
     "clean": "rm -rf dist",
     "rebuild": "npm run clean && npm run build"
   },

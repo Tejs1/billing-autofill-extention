@@ -16,11 +16,22 @@ import {
 // Create context menu item on extension install/startup
 function createContextMenu(): void {
   chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({
-      id: "ai-fill-form",
-      title: "Fill Form with AI",
-      contexts: ["page", "editable"],
-    });
+    chrome.contextMenus.create(
+      {
+        id: "ai-fill-form",
+        title: "Fill Form with AI",
+        contexts: ["page", "editable"],
+      },
+      () => {
+        // Suppress duplicate ID errors (can happen during rapid reloads)
+        if (chrome.runtime.lastError) {
+          console.log(
+            "[AI Form Fill] Context menu creation:",
+            chrome.runtime.lastError.message,
+          );
+        }
+      },
+    );
   });
 }
 
@@ -38,7 +49,18 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "ai-fill-form" && tab?.id) {
     chrome.tabs.sendMessage(tab.id, { type: "trigger-ai-fill" }, (response) => {
       if (chrome.runtime.lastError) {
-        logError("Context menu", chrome.runtime.lastError);
+        const errorMsg = chrome.runtime.lastError.message || "Unknown error";
+        logError("Context menu", errorMsg);
+
+        // Provide user-friendly message for common errors
+        if (errorMsg.includes("Receiving end does not exist")) {
+          showNotification(
+            "Extension Not Ready",
+            "Please reload the page and try again.",
+          );
+        } else {
+          showNotification("AI Fill Error", errorMsg);
+        }
         return;
       }
       if (!response?.success) {

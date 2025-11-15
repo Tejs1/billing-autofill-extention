@@ -49,3 +49,5 @@ export interface ExtensionError {
   message: string;
   retryable: boolean;
 }
+
+export type StatusTone = "success" | "error" | "";

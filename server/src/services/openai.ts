@@ -88,11 +88,11 @@ function buildPrompt(fields: FormField[]): OpenAIMessage[] {
     {
       role: "system",
       content:
-        `You help with auto completing web forms. Respond with JSON only. ` +
-        `For each field id, return a short, plausible placeholder value. ` +
-        `Avoid using real personal data. Use ISO formats for dates and keep numbers realistic. ` +
-        `Generate diverse, varied values each time - use different names, addresses, emails, and other data. ` +
-        `Vary the style and format of responses. ` +
+        `You help with auto-filling web forms with realistic, contextually appropriate data. Respond with JSON only. ` +
+        `For each field id, return realistic, specific, and detailed values that would be used in real-world scenarios. ` +
+        `Generate authentic-looking data that matches the field type and context. Use proper formatting for dates (ISO format), realistic phone numbers, valid email formats, and complete addresses. ` +
+        `Ensure values are diverse, unique, and avoid generic patterns like "example.com", "test@test.com", "123 Main St", or "John Doe". ` +
+        `Use real-sounding names from various cultural backgrounds, actual city names, legitimate-looking company names, and realistic product descriptions. ` +
         `Current persona/style: ${persona}. ` +
         `Variation seed: ${variationSeed}`,
     },
@@ -101,9 +101,23 @@ function buildPrompt(fields: FormField[]): OpenAIMessage[] {
       content: `Fields to fill (array of objects with id, name, label, placeholder, type):
 ${JSON.stringify(fields, null, 2)}
 
-Generate diverse, realistic placeholder values. Use different names, addresses, emails, phone numbers, and other data each time. Vary formats and styles while keeping values plausible and appropriate for each field type.
+Generate realistic, specific, and contextually appropriate values for each field. DO NOT use generic or placeholder-like values such as:
+- Generic names like "John Doe", "Jane Smith", "Test User"
+- Generic emails like "test@example.com", "user@test.com"
+- Generic addresses like "123 Main Street", "456 Oak Avenue"
+- Generic phone numbers like "555-1234"
+- Generic companies like "ACME Corp", "Example Inc"
 
-Return JSON in the format {"<fieldId>": {"value": "<filling value>", "reason": "<why this value fits>"}}.`,
+Instead, generate authentic-looking data:
+- Use diverse, real-sounding names (e.g., "Marcus Chen", "Priya Patel", "Alessandro Rossi")
+- Use realistic email addresses with actual domain patterns (e.g., "marcus.chen@techsolutions.io", "priya.patel@innovate.co")
+- Use complete, specific addresses with real city names (e.g., "2847 Riverside Drive, Austin, TX 78704")
+- Use properly formatted phone numbers (e.g., "+1 (512) 847-2039", "+44 20 7946 0958")
+- Use realistic company names (e.g., "TechSolutions Inc.", "Innovate Digital Agency")
+- For dates, use reasonable values in ISO format
+- Match the context and field type appropriately
+
+Return JSON in the format {"<fieldId>": {"value": "<realistic filling value>", "reason": "<why this value fits>"}}.`,
     },
   ];
 }
