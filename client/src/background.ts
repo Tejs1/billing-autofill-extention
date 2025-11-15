@@ -91,35 +91,66 @@ async function callBackendServer(
   // Use v1 API endpoint
   const endpoint = `${serverUrl}/api/v1/generate-fill`;
 
+  console.log(`[AI Form Fill] Calling backend server: ${endpoint}`);
+  console.log(`[AI Form Fill] Request payload:`, {
+    fieldCount: fields.length,
+    fields: fields.map((f) => ({
+      id: f.id,
+      name: f.name,
+      label: f.label || "(no label)",
+      type: f.type,
+      hasPlaceholder: !!f.placeholder,
+      hasExistingValue: !!f.existingValue,
+    })),
+  });
+
   let statusCode: number | undefined;
 
   try {
+    const requestBody = {
+      fields: fields,
+    };
+
     const response = await fetchWithTimeout(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-API-Key": serverApiKey,
       },
-      body: JSON.stringify({
-        fields: fields,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     statusCode = response.status;
+    console.log(`[AI Form Fill] Server response status: ${statusCode}`);
 
     if (!response.ok) {
       let detail = "";
+      let errorData: any = null;
       try {
         const errorBody = await response.text();
-        const errorData = JSON.parse(errorBody);
+        console.log(`[AI Form Fill] Error response body:`, errorBody);
+        errorData = JSON.parse(errorBody);
         detail = errorData.error || errorBody.slice(0, 400);
-      } catch {
+      } catch (parseError) {
+        console.error("[AI Form Fill] Failed to parse error response:", parseError);
         detail = `HTTP ${response.status}`;
       }
+      
+      console.error(`[AI Form Fill] Server request failed:`, {
+        status: statusCode,
+        error: detail,
+        errorData,
+      });
+      
       throw new Error(`Server request failed: ${detail}`);
     }
 
     const data: GenerateFillResponse = await response.json();
+    console.log(`[AI Form Fill] Server response:`, {
+      success: data.success,
+      dataKeys: data.data ? Object.keys(data.data) : [],
+      error: data.error,
+    });
 
     if (!data.success) {
       throw new Error(data.error || "Server returned unsuccessful response");
@@ -127,6 +158,13 @@ async function callBackendServer(
 
     return data.data || {};
   } catch (error) {
+    console.error(`[AI Form Fill] Error in callBackendServer:`, {
+      error,
+      statusCode,
+      fieldCount: fields.length,
+      endpoint,
+    });
+
     // Classify and enhance error
     const extError = classifyError(error as Error, statusCode);
 
@@ -149,13 +187,18 @@ chrome.runtime.onMessage.addListener(
   ) => {
     if (message?.type === "generate-fill-data") {
       (async () => {
+        const fieldCount = message.fields?.length || 0;
+        console.log(`[AI Form Fill] Received generate-fill-data request with ${fieldCount} fields`);
+        
         try {
           const result = await callBackendServer(message.fields || []);
+          console.log(`[AI Form Fill] Generate fill successful, returning ${Object.keys(result).length} fill values`);
           sendResponse({ success: true, data: result });
         } catch (error) {
           logError("Generate fill", error);
           const errorMessage =
             error instanceof Error ? error.message : "Unknown error occurred";
+          console.error(`[AI Form Fill] Generate fill failed:`, errorMessage);
           sendResponse({ success: false, error: errorMessage });
         }
       })();

@@ -64,9 +64,16 @@ export function classifyError(
 
   // Validation errors
   if (statusCode === 400 || message.includes("Validation")) {
+    // Preserve the actual validation error message if available
+    const validationMessage = message.includes("Validation error:")
+      ? message.replace("Server request failed: ", "")
+      : message.includes("Server request failed:")
+        ? message.replace("Server request failed: ", "")
+        : "Invalid request data. Please try again.";
+    
     return {
       type: ErrorType.VALIDATION,
-      message: "Invalid request data. Please try again.",
+      message: validationMessage,
       retryable: false,
     };
   }

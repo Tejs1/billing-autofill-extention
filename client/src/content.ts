@@ -1,4 +1,4 @@
-import type { FormField, MessageResponse } from "./types.js";
+import type { FormField, FillValue, MessageResponse } from "./types.js";
 
 const FILL_ATTR = "data-ai-fill-id";
 const SUPPORTED_TYPES = new Set([
@@ -93,6 +93,8 @@ function collectFields(): FormField[] {
     ...document.querySelectorAll<HTMLTextAreaElement>("textarea"),
   ];
 
+  console.log(`[AI Form Fill] Scanning ${allFields.length} input fields on page`);
+
   let counter = 0;
   for (const field of allFields) {
     const type = field.type?.toLowerCase() || field.tagName.toLowerCase();
@@ -101,23 +103,51 @@ function collectFields(): FormField[] {
     if (field.getAttribute("data-ignore-ai-fill") === "true") continue;
 
     const label = getLabelText(field);
-    const name = field.name || "";
+    // Ensure name is never empty - use fallback strategy
+    let name = field.name?.trim() || "";
+    if (!name) {
+      // Try field id
+      name = field.id?.trim() || "";
+    }
+    if (!name) {
+      // Try label (sanitized)
+      name = label
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "") || "";
+    }
+    if (!name) {
+      // Final fallback: use field type and index
+      name = `field_${type}_${counter}`;
+    }
     const placeholder = field.placeholder || "";
     const existingValue = field.value?.trim();
 
     const id = `${Date.now()}-${counter++}`;
     field.setAttribute(FILL_ATTR, id);
 
-    result.push({
+    const formField: FormField = {
       id,
       name,
       label,
       placeholder,
       type,
       existingValue,
+    };
+
+    console.log(`[AI Form Fill] Collected field:`, {
+      id,
+      name,
+      label: label || "(no label)",
+      type,
+      hasPlaceholder: !!placeholder,
+      hasExistingValue: !!existingValue,
     });
+
+    result.push(formField);
   }
 
+  console.log(`[AI Form Fill] Collected ${result.length} fillable fields`);
   return result;
 }
 
@@ -141,7 +171,7 @@ function applyValue(field: HTMLInputElement | HTMLTextAreaElement, value: string
 /**
  * Fill fields with values from the fill map
  */
-function fillFields(fillMap: Record<string, any>): void {
+function fillFields(fillMap: Record<string, FillValue | string>): void {
   ensureHighlightStyle();
 
   Object.entries(fillMap).forEach(([id, payload]) => {
@@ -151,7 +181,11 @@ function fillFields(fillMap: Record<string, any>): void {
     if (!field) return;
 
     const value =
-      typeof payload === "object" && payload?.value ? payload.value : payload;
+      typeof payload === "object" && payload && "value" in payload
+        ? payload.value
+        : typeof payload === "string"
+          ? payload
+          : "";
     if (!value) return;
 
     applyValue(field, value);
@@ -201,9 +235,11 @@ function cleanupFields(fields: FormField[]): void {
  * Main handler for fill requests
  */
 async function handleFillRequest(): Promise<{ success: boolean; error?: string; filled?: number }> {
+  console.log("[AI Form Fill] Starting fill request");
   const fields = collectFields();
 
   if (!fields.length) {
+    console.warn("[AI Form Fill] No fillable fields found on page");
     return {
       success: false,
       error: "No suitable input fields detected on this page.",
@@ -211,6 +247,7 @@ async function handleFillRequest(): Promise<{ success: boolean; error?: string; 
   }
 
   try {
+    console.log(`[AI Form Fill] Sending ${fields.length} fields to background script`);
     const response = await requestAiFill(fields);
 
     if (!response?.success) {
@@ -222,16 +259,21 @@ async function handleFillRequest(): Promise<{ success: boolean; error?: string; 
       };
     }
 
-    fillFields(response.data || {});
+    const fillData = response.data || {};
+    const fillCount = Object.keys(fillData).length;
+    console.log(`[AI Form Fill] Received fill data for ${fillCount} fields`);
+    
+    fillFields(fillData);
     cleanupFields(fields);
 
+    console.log(`[AI Form Fill] Successfully filled ${fillCount} fields`);
     return {
       success: true,
-      filled: Object.keys(response.data || {}).length,
+      filled: fillCount,
     };
   } catch (error) {
     cleanupFields(fields);
-    console.error("[AI Form Fill] Error:", error);
+    console.error("[AI Form Fill] Error in fill request:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",
